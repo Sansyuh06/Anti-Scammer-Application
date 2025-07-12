@@ -69,9 +69,11 @@ Anti_Scammer/
 
 1. **Important:** All scripts must be run as **Administrator** (required to modify system files/services).
 2. Open command prompt with admin privileges.
-3. Run each script individually:
+3. To Run the script you can either
+run each script individually:
    ```bash
    python block_sites.py
    python detect_services.py
    python unblock_sites.py
    ```
+or run All at once with using test.py
