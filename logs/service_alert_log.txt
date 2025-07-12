@@ -1,0 +1,7 @@
+[2025-07-05 13:14:41.559387] Suspicious service: imcontrollerservice
+[2025-07-05 13:14:41.559992] Suspicious service: remoteaccess
+[2025-07-05 13:14:41.560237] Suspicious service: remoteregistry
+2025-07-10 22:45:27.837324 - Suspicious service: RemoteHackTool
+[2025-07-11 01:10:22.963211] Service monitoring started
+[2025-07-11 01:38:13] Service monitoring started
+[2025-07-11 01:38:18] Service monitoring stopped

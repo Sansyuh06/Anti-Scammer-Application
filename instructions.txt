@@ -1,0 +1,14 @@
+INSTRUCTIONS FOR Anti_Scammer Project
+
+1. All scripts are inside the "main" folder:
+   - site_blocker.py: Run as Admin to block scammer websites
+   - site_unblocker.py: Unblocks those sites
+   - service_monitor.py: Detects and blocks suspicious remote access services
+
+2. Logs are saved inside the "logs" folder:
+   - block_log.txt: Website block/unblock history
+   - service_alert_log.txt: Alerts for newly detected suspicious services
+
+3. GUI is yet to be developed. Please integrate your GUI with the 3 Python files in /main.
+
+4. Make sure to run scripts as Administrator (Right-click → Run as admin).

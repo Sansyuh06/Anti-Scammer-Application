@@ -1,0 +1,28 @@
+[2025-07-12 20:13:40.792108] Blocked all sites: www.ultraviewer.com, www.anydesk.com, anydesk.com
+[2025-07-12 20:14:07.688178] Blocked all sites: www.ultraviewer.com, www.anydesk.com, anydesk.com
+[2025-07-12 20:14:15.552569] Unblocked all sites
+[2025-07-12 20:14:18.093798] Unblocked all sites
+[2025-07-12 20:14:43.975036] Blocked: anydesk.com
+[2025-07-12 20:14:49.925167] Unblocked all sites
+[2025-07-12 20:14:58.119687] Unblocked all sites
+[2025-07-12 20:15:00.362507] Blocked all sites: 
+[2025-07-12 20:15:12.139735] Checked URL: anydesk.com, Score: 100, Status: Safe
+[2025-07-12 20:15:16.789296] Blocked all sites: 
+[2025-07-12 20:15:19.846178] Unblocked all sites
+[2025-07-12 20:18:55.193424] Full system scan completed. Score: 50, Status: Suspicious
+[2025-07-12 20:19:00.866534] Protection update check initiated
+[2025-07-12 20:19:08.245738] Blocked all sites: 
+[2025-07-12 20:30:17.930186] Protection update check initiated
+[2025-07-12 20:30:34.991490] Blocked site: facebook.com
+[2025-07-12 20:30:35.021341] Blocked site: twitter.com
+[2025-07-12 20:30:38.664335] Blocked default sites
+[2025-07-12 20:30:45.282427] Unblocked all sites
+[2025-07-12 20:32:17.077799] Blocked site: https://anydesk.com/en
+[2025-07-12 20:32:17.094668] Blocked site: https://www.teamviewer.com/en-in/
+[2025-07-12 20:32:17.112551] Blocked site: https://www.ultraviewer.net/en/
+[2025-07-12 20:32:18.681475] Blocked default sites
+[2025-07-12 20:34:10.534558] Unblocked all sites
+[2025-07-12 20:34:17.724167] Blocked site: https://anydesk.com/en
+[2025-07-12 20:34:17.740982] Blocked site: https://www.teamviewer.com/en-in/
+[2025-07-12 20:34:17.754571] Blocked site: https://www.ultraviewer.net/en/
+[2025-07-12 20:34:18.596118] Blocked default sites
