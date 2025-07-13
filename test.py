@@ -9,8 +9,6 @@ import time
 import winsound
 import json
 import urllib.parse
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 try:
     import pystray
     from PIL import Image
@@ -244,7 +242,6 @@ class ScamRakshakGUI:
         self.auto_updates_var = tk.BooleanVar(value=True)
         self.scan_frequency_var = tk.StringVar(value="Daily")
         self.auto_quarantine_var = tk.BooleanVar(value=True)
-        self.log_level_var = tk.StringVar(value="INFO")
         self.cpu_limit_var = tk.StringVar(value="50")
         self.memory_limit_var = tk.StringVar(value="512")
         self.host_path = r"C:\Windows\System32\drivers\etc\hosts"
@@ -291,7 +288,6 @@ class ScamRakshakGUI:
                     self.auto_updates_var.set(settings.get("auto_updates", True))
                     self.scan_frequency_var.set(settings.get("scan_frequency", "Daily"))
                     self.auto_quarantine_var.set(settings.get("auto_quarantine", True))
-                    self.log_level_var.set(settings.get("log_level", "INFO"))
                     self.cpu_limit_var.set(str(settings.get("cpu_limit", 50)))
                     self.memory_limit_var.set(str(settings.get("memory_limit", 512)))
                     self.theme_manager.current_theme = self.theme_var.get()
@@ -324,7 +320,6 @@ class ScamRakshakGUI:
                 "auto_updates": self.auto_updates_var.get(),
                 "scan_frequency": self.scan_frequency_var.get(),
                 "auto_quarantine": self.auto_quarantine_var.get(),
-                "log_level": self.log_level_var.get(),
                 "cpu_limit": cpu_limit,
                 "memory_limit": memory_limit
             }
@@ -540,12 +535,6 @@ class ScamRakshakGUI:
                 self.status_cards["Threats Blocked"].update_value(str(self.threats_blocked), "success")
             if self.status_cards.get("Last Scan") and self.status_cards["Last Scan"].winfo_exists():
                 self.status_cards["Last Scan"].update_value(self.last_scan_time, "info")
-            try:
-                system_health = "Excellent" if int(self.cpu_limit_var.get()) < 80 and int(self.memory_limit_var.get()) < 1024 else "Warning"
-            except ValueError:
-                system_health = "Warning"
-            if self.status_cards.get("System Health") and self.status_cards["System Health"].winfo_exists():
-                self.status_cards["System Health"].update_value(system_health, "safe" if system_health == "Excellent" else "warning")
             self.status_update_id = self.root.after(5000, self.update_status_cards)
         except Exception as e:
             self.show_notification("Error", f"Failed to update status cards: {str(e)}", "error")
@@ -704,7 +693,7 @@ class ScamRakshakGUI:
                 log.write(f"[{datetime.datetime.now()}] Error: Administrator privileges required to block all sites\n")
             return
         try:
-            default_blocked = ["facebook.com", "twitter.com", "instagram.com"]
+            default_blocked = ["https://anydesk.com/en", "https://www.ultraviewer.net/en/", "https://www.teamviewer.com/en-in/"]
             blocked_count = 0
             for site in default_blocked:
                 if site not in self.custom_blocked_sites:
@@ -1241,7 +1230,6 @@ class ScamRakshakGUI:
             fg=self.theme_manager.get_color('fg_secondary')
         ).pack(anchor=tk.W, pady=(6, 0))
         self.create_status_cards(self.main_scroll)
-        self.root.after(0, lambda: self.create_dashboard_graphs(self.main_scroll))
         self.create_protection_status(self.main_scroll)
         self.create_quick_actions(self.main_scroll)
         self.update_status_cards()
@@ -1252,114 +1240,16 @@ class ScamRakshakGUI:
         cards_frame.grid_columnconfigure(0, weight=1)
         cards_frame.grid_columnconfigure(1, weight=1)
         cards_frame.grid_columnconfigure(2, weight=1)
-        cards_frame.grid_columnconfigure(3, weight=1)
         self.status_cards_data = [
             ("Protection Status", self.protection_status, "safe"),
             ("Threats Blocked", str(self.threats_blocked), "success"),
-            ("Last Scan", self.last_scan_time, "info"),
-            ("System Health", "Excellent", "safe")
+            ("Last Scan", self.last_scan_time, "info")
         ]
         self.status_cards = {}
         for i, (title, value, status) in enumerate(self.status_cards_data):
             card = StatusCard(cards_frame, title, value, status, self.theme_manager)
             card.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
             self.status_cards[title] = card
-
-    def create_dashboard_graphs(self, parent):
-        graphs_frame = tk.Frame(parent, bg=self.theme_manager.get_color('card_bg'), relief="raised", bd=2)
-        graphs_frame.pack(fill=tk.BOTH, padx=20, pady=20)
-        header = tk.Frame(graphs_frame, bg=self.theme_manager.get_color('card_bg'))
-        header.pack(fill=tk.X, padx=20, pady=(20, 10))
-        tk.Label(
-            header,
-            text="Security Analytics",
-            font=("Segoe UI", 16, "bold"),
-            bg=self.theme_manager.get_color('card_bg'),
-            fg=self.theme_manager.get_color('fg_primary')
-        ).pack(anchor=tk.W)
-        graphs_container = tk.Frame(graphs_frame, bg=self.theme_manager.get_color('card_bg'))
-        graphs_container.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-        threats = [self.threats_blocked, len(self.custom_blocked_sites), len(self.url_history)]
-        labels = ['Threats Blocked', 'Sites Blocked', 'URLs Checked']
-        colors = [self.theme_manager.get_color('danger'), self.theme_manager.get_color('warning'), self.theme_manager.get_color('info')]
-        if sum(threats) == 0:
-            placeholder_label = tk.Label(
-                graphs_container,
-                text="No threat data available yet",
-                font=("Segoe UI", 12, "italic"),
-                bg=self.theme_manager.get_color('card_bg'),
-                fg=self.theme_manager.get_color('fg_secondary')
-            )
-            placeholder_label.grid(row=0, column=0, padx=10, pady=10)
-            self.dashboard_canvas['pie'] = placeholder_label
-        else:
-            fig_pie, ax_pie = plt.subplots(figsize=(4, 3.2))
-            ax_pie.pie(threats, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
-            ax_pie.axis('equal')
-            ax_pie.set_title("Threat Distribution", color=self.theme_manager.get_color('fg_primary'))
-            pie_canvas = FigureCanvasTkAgg(fig_pie, master=graphs_container)
-            pie_canvas.get_tk_widget().configure(bg=self.theme_manager.get_color('bg_primary'))
-            pie_canvas.get_tk_widget().grid(row=0, column=0, padx=10, pady=10)
-            self.dashboard_canvas['pie'] = pie_canvas
-        fig_line, ax_line = plt.subplots(figsize=(4, 3.2))
-        times = [t[0] for t in self.scan_history[-5:]] or [datetime.datetime.now()]
-        scores = [t[1] for t in self.scan_history[-5:]] or [0]
-        ax_line.plot([t.strftime("%Y-%m-%d") for t in times], scores, color=self.theme_manager.get_color('accent_primary'), marker='o')
-        ax_line.set_title("Scan History", color=self.theme_manager.get_color('fg_primary'))
-        ax_line.set_xlabel("Date", color=self.theme_manager.get_color('fg_secondary'))
-        ax_line.set_ylabel("Safety Score", color=self.theme_manager.get_color('fg_secondary'))
-        ax_line.tick_params(colors=self.theme_manager.get_color('fg_secondary'))
-        line_canvas = FigureCanvasTkAgg(fig_line, master=graphs_container)
-        line_canvas.get_tk_widget().configure(bg=self.theme_manager.get_color('bg_primary'))
-        line_canvas.get_tk_widget().grid(row=0, column=1, padx=10, pady=10)
-        self.dashboard_canvas['line'] = line_canvas
-        fig_bar, ax_bar = plt.subplots(figsize=(4, 3.2))
-        resources = ['CPU', 'Memory']
-        usage = [int(self.cpu_limit_var.get()), int(self.memory_limit_var.get()) / 10]
-        ax_bar.bar(resources, usage, color=self.theme_manager.get_color('success'))
-        ax_bar.set_title("System Resources", color=self.theme_manager.get_color('fg_primary'))
-        ax_bar.set_ylabel("Usage (%)", color=self.theme_manager.get_color('fg_secondary'))
-        ax_bar.tick_params(colors=self.theme_manager.get_color('fg_secondary'))
-        bar_canvas = FigureCanvasTkAgg(fig_bar, master=graphs_container)
-        bar_canvas.get_tk_widget().configure(bg=self.theme_manager.get_color('bg_primary'))
-        bar_canvas.get_tk_widget().grid(row=0, column=2, padx=10, pady=10)
-        self.dashboard_canvas['bar'] = bar_canvas
-        ModernButton(
-            graphs_frame,
-            "Export Graphs",
-            command=self.export_graphs,
-            style="secondary",
-            theme_manager=self.theme_manager
-        ).pack(pady=10)
-
-    def export_graphs(self):
-        file_path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG files", "*.png"), ("All files", "*.*")])
-        if file_path:
-            try:
-                fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 4))
-                threats = [self.threats_blocked, len(self.custom_blocked_sites), len(self.url_history)]
-                labels = ['Threats Blocked', 'Sites Blocked', 'URLs Checked']
-                colors = [self.theme_manager.get_color('danger'), self.theme_manager.get_color('warning'), self.theme_manager.get_color('info')]
-                ax1.pie(threats, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
-                ax1.axis('equal')
-                ax1.set_title("Threat Distribution")
-                times = [t[0] for t in self.scan_history[-5:]] or [datetime.datetime.now()]
-                scores = [t[1] for t in self.scan_history[-5:]] or [0]
-                ax2.plot([t.strftime("%Y-%m-%d") for t in times], scores, color=self.theme_manager.get_color('accent_primary'), marker='o')
-                ax2.set_title("Scan History")
-                ax2.set_xlabel("Date")
-                ax2.set_ylabel("Safety Score")
-                resources = ['CPU', 'Memory']
-                usage = [int(self.cpu_limit_var.get()), int(self.memory_limit_var.get()) / 10]
-                ax3.bar(resources, usage, color=self.theme_manager.get_color('success'))
-                ax3.set_title("System Resources")
-                ax3.set_ylabel("Usage (%)")
-                plt.tight_layout()
-                plt.savefig(file_path)
-                plt.close()
-                self.show_notification("Success", f"Dashboard graphs saved to {file_path}", "success")
-            except Exception as e:
-                self.show_notification("Error", f"Failed to export graphs: {str(e)}", "error")
 
     def create_protection_status(self, parent):
         protection_frame = tk.Frame(parent, bg=self.theme_manager.get_color('card_bg'), relief="raised", bd=2)
@@ -1518,7 +1408,8 @@ class ScamRakshakGUI:
             input_frame,
             "Unblock All",
             command=self.unblock_all_sites,
-            style="danger",theme_manager=self.theme_manager
+            style="danger",
+            theme_manager=self.theme_manager
         ).pack(side=tk.LEFT)
         list_frame = tk.Frame(sites_frame, bg=self.theme_manager.get_color('card_bg'))
         list_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
@@ -1676,8 +1567,7 @@ class ScamRakshakGUI:
             header_frame,
             text="Monitor and manage system services",
             font=("Segoe UI", 14),
-            bg=self.theme_manager.get_color('bg_primary'),
-            fg=self.theme_manager.get_color('fg_secondary')
+            bg=self.theme_manager.get_color('bg_primary'),            fg=self.theme_manager.get_color('fg_secondary')
         ).pack(anchor=tk.W, pady=(6, 0))
         status_frame = tk.Frame(main_scroll, bg=self.theme_manager.get_color('card_bg'), relief="raised", bd=2)
         status_frame.pack(fill=tk.X, padx=20, pady=10)
@@ -1686,13 +1576,10 @@ class ScamRakshakGUI:
             text=f"Monitoring Status: {'Active' if self.monitoring else 'Inactive'}",
             font=("Segoe UI", 12, "bold"),
             bg=self.theme_manager.get_color('card_bg'),
-            fg=self.theme_manager.get_color('success' if self.monitoring else 'danger'),
-            anchor="w",
-            padx=20,
-            pady=10
+            fg=self.theme_manager.get_color('success' if self.monitoring else 'danger')
         )
-        self.monitor_status_label.pack(fill=tk.X)
-        self.buttons_frame = tk.Frame(main_scroll, bg=self.theme_manager.get_color('card_bg'))
+        self.monitor_status_label.pack(anchor=tk.W, padx=20, pady=10)
+        self.buttons_frame = tk.Frame(main_scroll, bg=self.theme_manager.get_color('card_bg'), relief="raised", bd=2)
         self.buttons_frame.pack(fill=tk.X, padx=20, pady=10)
         if self.monitoring:
             ModernButton(
@@ -1726,23 +1613,27 @@ class ScamRakshakGUI:
         ).pack(side=tk.RIGHT)
         services_frame = tk.Frame(main_scroll, bg=self.theme_manager.get_color('card_bg'), relief="raised", bd=2)
         services_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-        columns = ('Name', 'Status', 'PID', 'Description')
         self.services_tree = ttk.Treeview(
             services_frame,
-            columns=columns,
-            show='headings',
+            columns=("Name", "Status", "PID", "Description"),
+            show="headings",
             height=10
         )
-        for col in columns:
-            self.services_tree.heading(col, text=col)
-            self.services_tree.column(col, width=150 if col != 'Description' else 400)
-        self.services_tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self.services_tree.heading("Name", text="Service Name")
+        self.services_tree.heading("Status", text="Status")
+        self.services_tree.heading("PID", text="PID")
+        self.services_tree.heading("Description", text="Description")
+        self.services_tree.column("Name", width=200)
+        self.services_tree.column("Status", width=100)
+        self.services_tree.column("PID", width=80)
+        self.services_tree.column("Description", width=400)
+        self.services_tree.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
         scrollbar = ttk.Scrollbar(services_frame, orient=tk.VERTICAL, command=self.services_tree.yview)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.services_tree.configure(yscrollcommand=scrollbar.set)
         self.monitor_output = scrolledtext.ScrolledText(
             main_scroll,
-            height=6,
+            height=8,
             font=("Segoe UI", 10),
             bg=self.theme_manager.get_color('bg_secondary'),
             fg=self.theme_manager.get_color('fg_primary'),
@@ -1756,9 +1647,7 @@ class ScamRakshakGUI:
     def show_logs(self):
         self.clear_content()
         self.update_cards_active = False
-        main_scroll = tk.Frame(self.main_scroll, bg=self.theme_manager.get_color('bg_primary'))
-        main_scroll.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
-        header_frame = tk.Frame(main_scroll, bg=self.theme_manager.get_color('bg_primary'))
+        header_frame = tk.Frame(self.main_scroll, bg=self.theme_manager.get_color('bg_primary'))
         header_frame.pack(fill=tk.X, padx=20, pady=(20, 15))
         tk.Label(
             header_frame,
@@ -1769,12 +1658,12 @@ class ScamRakshakGUI:
         ).pack(anchor=tk.W)
         tk.Label(
             header_frame,
-            text="View and manage system logs and reports",
+            text="View system logs and generate reports",
             font=("Segoe UI", 14),
             bg=self.theme_manager.get_color('bg_primary'),
             fg=self.theme_manager.get_color('fg_secondary')
         ).pack(anchor=tk.W, pady=(6, 0))
-        controls_frame = tk.Frame(main_scroll, bg=self.theme_manager.get_color('card_bg'), relief="raised", bd=2)
+        controls_frame = tk.Frame(self.main_scroll, bg=self.theme_manager.get_color('card_bg'), relief="raised", bd=2)
         controls_frame.pack(fill=tk.X, padx=20, pady=10)
         tk.Label(
             controls_frame,
@@ -1784,24 +1673,26 @@ class ScamRakshakGUI:
             fg=self.theme_manager.get_color('fg_primary')
         ).pack(side=tk.LEFT, padx=(20, 10), pady=10)
         self.log_type_var = tk.StringVar(value="block_log")
-        log_types = [("Block Log", "block_log"), ("Service Alerts", "service_alert_log")]
+        log_types = [("Block Log", "block_log"), ("Service Alerts", "service_alert")]
         for text, value in log_types:
             tk.Radiobutton(
                 controls_frame,
                 text=text,
-                variable=self.log_type_var,
                 value=value,
+                variable=self.log_type_var,
                 font=("Segoe UI", 12),
                 bg=self.theme_manager.get_color('card_bg'),
                 fg=self.theme_manager.get_color('fg_primary'),
                 selectcolor=self.theme_manager.get_color('bg_secondary'),
+                activebackground=self.theme_manager.get_color('card_bg'),
+                activeforeground=self.theme_manager.get_color('fg_primary'),
                 command=self.load_logs
             ).pack(side=tk.LEFT, padx=10)
         buttons_frame = tk.Frame(controls_frame, bg=self.theme_manager.get_color('card_bg'))
         buttons_frame.pack(side=tk.RIGHT, padx=20, pady=10)
         ModernButton(
             buttons_frame,
-            "Refresh Logs",
+            "Refresh",
             command=self.refresh_logs,
             style="info",
             theme_manager=self.theme_manager
@@ -1819,10 +1710,17 @@ class ScamRakshakGUI:
             command=self.export_logs,
             style="secondary",
             theme_manager=self.theme_manager
+        ).pack(side=tk.LEFT, padx=(0, 10))
+        ModernButton(
+            buttons_frame,
+            "Generate Report",
+            command=lambda: self.generate_report("full"),
+            style="primary",
+            theme_manager=self.theme_manager
         ).pack(side=tk.LEFT)
         self.log_text = scrolledtext.ScrolledText(
-            main_scroll,
-            height=15,
+            self.main_scroll,
+            height=20,
             font=("Segoe UI", 10),
             bg=self.theme_manager.get_color('bg_secondary'),
             fg=self.theme_manager.get_color('fg_primary'),
@@ -1831,37 +1729,12 @@ class ScamRakshakGUI:
             bd=2
         )
         self.log_text.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-        reports_frame = tk.Frame(main_scroll, bg=self.theme_manager.get_color('card_bg'), relief="raised", bd=2)
-        reports_frame.pack(fill=tk.X, padx=20, pady=10)
-        tk.Label(
-            reports_frame,
-            text="Generate Reports",
-            font=("Segoe UI", 16, "bold"),
-            bg=self.theme_manager.get_color('card_bg'),
-            fg=self.theme_manager.get_color('fg_primary')
-        ).pack(anchor=tk.W, padx=20, pady=(10, 5))
-        ModernButton(
-            reports_frame,
-            "System Report",
-            command=lambda: self.generate_report("system"),
-            style="primary",
-            theme_manager=self.theme_manager
-        ).pack(side=tk.LEFT, padx=(20, 10), pady=10)
-        ModernButton(
-            reports_frame,
-            "Threat Report",
-            command=lambda: self.generate_report("threat"),
-            style="primary",
-            theme_manager=self.theme_manager
-        ).pack(side=tk.LEFT, pady=10)
         self.load_logs()
 
     def show_settings(self):
         self.clear_content()
         self.update_cards_active = False
-        main_scroll = tk.Frame(self.main_scroll, bg=self.theme_manager.get_color('bg_primary'))
-        main_scroll.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
-        header_frame = tk.Frame(main_scroll, bg=self.theme_manager.get_color('bg_primary'))
+        header_frame = tk.Frame(self.main_scroll, bg=self.theme_manager.get_color('bg_primary'))
         header_frame.pack(fill=tk.X, padx=20, pady=(20, 15))
         tk.Label(
             header_frame,
@@ -1877,155 +1750,165 @@ class ScamRakshakGUI:
             bg=self.theme_manager.get_color('bg_primary'),
             fg=self.theme_manager.get_color('fg_secondary')
         ).pack(anchor=tk.W, pady=(6, 0))
-        settings_frame = tk.Frame(main_scroll, bg=self.theme_manager.get_color('card_bg'), relief="raised", bd=2)
-        settings_frame.pack(fill=tk.X, padx=20, pady=10)
+        settings_frame = tk.Frame(self.main_scroll, bg=self.theme_manager.get_color('card_bg'), relief="raised", bd=2)
+        settings_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
         tk.Label(
             settings_frame,
             text="General Settings",
             font=("Segoe UI", 16, "bold"),
             bg=self.theme_manager.get_color('card_bg'),
             fg=self.theme_manager.get_color('fg_primary')
-        ).pack(anchor=tk.W, padx=20, pady=(10, 5))
+        ).pack(anchor=tk.W, padx=20, pady=(20, 10))
         tk.Checkbutton(
             settings_frame,
-            text="Start on system boot",
+            text="Start with Windows",
             variable=self.autostart_var,
             font=("Segoe UI", 12),
             bg=self.theme_manager.get_color('card_bg'),
             fg=self.theme_manager.get_color('fg_primary'),
-            selectcolor=self.theme_manager.get_color('bg_secondary')
+            selectcolor=self.theme_manager.get_color('bg_secondary'),
+            activebackground=self.theme_manager.get_color('card_bg'),
+            activeforeground=self.theme_manager.get_color('fg_primary')
         ).pack(anchor=tk.W, padx=20, pady=5)
         tk.Checkbutton(
             settings_frame,
-            text="Enable notifications",
+            text="Enable Notifications",
             variable=self.notifications_var,
             font=("Segoe UI", 12),
             bg=self.theme_manager.get_color('card_bg'),
             fg=self.theme_manager.get_color('fg_primary'),
-            selectcolor=self.theme_manager.get_color('bg_secondary')
+            selectcolor=self.theme_manager.get_color('bg_secondary'),
+            activebackground=self.theme_manager.get_color('card_bg'),
+            activeforeground=self.theme_manager.get_color('fg_primary')
         ).pack(anchor=tk.W, padx=20, pady=5)
         tk.Checkbutton(
             settings_frame,
-            text="Enable sound alerts",
+            text="Sound Alerts",
             variable=self.sound_alerts_var,
             font=("Segoe UI", 12),
             bg=self.theme_manager.get_color('card_bg'),
             fg=self.theme_manager.get_color('fg_primary'),
-            selectcolor=self.theme_manager.get_color('bg_secondary')
+            selectcolor=self.theme_manager.get_color('bg_secondary'),
+            activebackground=self.theme_manager.get_color('card_bg'),
+            activeforeground=self.theme_manager.get_color('fg_primary')
         ).pack(anchor=tk.W, padx=20, pady=5)
         tk.Checkbutton(
             settings_frame,
-            text="Enable real-time protection",
+            text="Real-time Protection",
             variable=self.realtime_var,
             font=("Segoe UI", 12),
             bg=self.theme_manager.get_color('card_bg'),
             fg=self.theme_manager.get_color('fg_primary'),
-            selectcolor=self.theme_manager.get_color('bg_secondary')
+            selectcolor=self.theme_manager.get_color('bg_secondary'),
+            activebackground=self.theme_manager.get_color('card_bg'),
+            activeforeground=self.theme_manager.get_color('fg_primary')
         ).pack(anchor=tk.W, padx=20, pady=5)
         tk.Checkbutton(
             settings_frame,
-            text="Auto-update definitions",
+            text="Automatic Updates",
             variable=self.auto_updates_var,
             font=("Segoe UI", 12),
             bg=self.theme_manager.get_color('card_bg'),
             fg=self.theme_manager.get_color('fg_primary'),
-            selectcolor=self.theme_manager.get_color('bg_secondary')
+            selectcolor=self.theme_manager.get_color('bg_secondary'),
+            activebackground=self.theme_manager.get_color('card_bg'),
+            activeforeground=self.theme_manager.get_color('fg_primary')
         ).pack(anchor=tk.W, padx=20, pady=5)
         tk.Checkbutton(
             settings_frame,
-            text="Auto-quarantine dangerous URLs",
+            text="Auto Quarantine Suspicious Services",
             variable=self.auto_quarantine_var,
             font=("Segoe UI", 12),
             bg=self.theme_manager.get_color('card_bg'),
             fg=self.theme_manager.get_color('fg_primary'),
-            selectcolor=self.theme_manager.get_color('bg_secondary')
+            selectcolor=self.theme_manager.get_color('bg_secondary'),
+            activebackground=self.theme_manager.get_color('card_bg'),
+            activeforeground=self.theme_manager.get_color('fg_primary')
         ).pack(anchor=tk.W, padx=20, pady=5)
-        scan_frame = tk.Frame(main_scroll, bg=self.theme_manager.get_color('card_bg'), relief="raised", bd=2)
-        scan_frame.pack(fill=tk.X, padx=20, pady=10)
         tk.Label(
-            scan_frame,
-            text="Scan Settings",
-            font=("Segoe UI", 16, "bold"),
+            settings_frame,
+            text="Scan Frequency",
+            font=("Segoe UI", 12, "bold"),
             bg=self.theme_manager.get_color('card_bg'),
             fg=self.theme_manager.get_color('fg_primary')
         ).pack(anchor=tk.W, padx=20, pady=(10, 5))
-        tk.Label(
-            scan_frame,
-            text="Scan Frequency:",
-            font=("Segoe UI", 12),
-            bg=self.theme_manager.get_color('card_bg'),
-            fg=self.theme_manager.get_color('fg_primary')
-        ).pack(anchor=tk.W, padx=20, pady=5)
+        scan_freq_frame = tk.Frame(settings_frame, bg=self.theme_manager.get_color('card_bg'))
+        scan_freq_frame.pack(anchor=tk.W, padx=20, pady=5)
         scan_options = ["Hourly", "Daily", "Weekly", "Monthly"]
-        tk.OptionMenu(
-            scan_frame,
-            self.scan_frequency_var,
-            *scan_options
-        ).pack(anchor=tk.W, padx=20, pady=5)
-        resource_frame = tk.Frame(main_scroll, bg=self.theme_manager.get_color('card_bg'), relief="raised", bd=2)
-        resource_frame.pack(fill=tk.X, padx=20, pady=10)
+        for option in scan_options:
+            tk.Radiobutton(
+                scan_freq_frame,
+                text=option,
+                value=option,
+                variable=self.scan_frequency_var,
+                font=("Segoe UI", 12),
+                bg=self.theme_manager.get_color('card_bg'),
+                fg=self.theme_manager.get_color('fg_primary'),
+                selectcolor=self.theme_manager.get_color('bg_secondary'),
+                activebackground=self.theme_manager.get_color('card_bg'),
+                activeforeground=self.theme_manager.get_color('fg_primary')
+            ).pack(side=tk.LEFT, padx=10)
         tk.Label(
-            resource_frame,
+            settings_frame,
             text="Resource Limits",
-            font=("Segoe UI", 16, "bold"),
+            font=("Segoe UI", 12, "bold"),
             bg=self.theme_manager.get_color('card_bg'),
             fg=self.theme_manager.get_color('fg_primary')
         ).pack(anchor=tk.W, padx=20, pady=(10, 5))
+        resource_frame = tk.Frame(settings_frame, bg=self.theme_manager.get_color('card_bg'))
+        resource_frame.pack(anchor=tk.W, padx=20, pady=5)
         tk.Label(
             resource_frame,
             text="CPU Limit (%):",
             font=("Segoe UI", 12),
             bg=self.theme_manager.get_color('card_bg'),
             fg=self.theme_manager.get_color('fg_primary')
-        ).pack(anchor=tk.W, padx=20, pady=5)
+        ).pack(side=tk.LEFT)
         tk.Entry(
             resource_frame,
             textvariable=self.cpu_limit_var,
             font=("Segoe UI", 12),
-            width=10
-        ).pack(anchor=tk.W, padx=20, pady=5)
+            width=10,
+            bg=self.theme_manager.get_color('bg_secondary'),
+            fg=self.theme_manager.get_color('fg_primary'),
+            insertbackground=self.theme_manager.get_color('fg_primary'),
+            relief="flat",
+            bd=2
+        ).pack(side=tk.LEFT, padx=(5, 20))
         tk.Label(
             resource_frame,
             text="Memory Limit (MB):",
             font=("Segoe UI", 12),
             bg=self.theme_manager.get_color('card_bg'),
             fg=self.theme_manager.get_color('fg_primary')
-        ).pack(anchor=tk.W, padx=20, pady=5)
+        ).pack(side=tk.LEFT)
         tk.Entry(
             resource_frame,
             textvariable=self.memory_limit_var,
             font=("Segoe UI", 12),
-            width=10
-        ).pack(anchor=tk.W, padx=20, pady=5)
-        tk.Label(
-            resource_frame,
-            text="Log Level:",
-            font=("Segoe UI", 12),
-            bg=self.theme_manager.get_color('card_bg'),
-            fg=self.theme_manager.get_color('fg_primary')
-        ).pack(anchor=tk.W, padx=20, pady=5)
-        log_levels = ["DEBUG", "INFO", "WARNING", "ERROR"]
-        tk.OptionMenu(
-            resource_frame,
-            self.log_level_var,
-            *log_levels
-        ).pack(anchor=tk.W, padx=20, pady=5)
-        buttons_frame = tk.Frame(main_scroll, bg=self.theme_manager.get_color('card_bg'), relief="raised", bd=2)
-        buttons_frame.pack(fill=tk.X, padx=20, pady=10)
+            width=10,
+            bg=self.theme_manager.get_color('bg_secondary'),
+            fg=self.theme_manager.get_color('fg_primary'),
+            insertbackground=self.theme_manager.get_color('fg_primary'),
+            relief="flat",
+            bd=2
+        ).pack(side=tk.LEFT, padx=5)
+        buttons_frame = tk.Frame(settings_frame, bg=self.theme_manager.get_color('card_bg'))
+        buttons_frame.pack(fill=tk.X, padx=20, pady=20)
         ModernButton(
             buttons_frame,
             "Save Settings",
             command=self.save_settings,
             style="primary",
             theme_manager=self.theme_manager
-        ).pack(side=tk.LEFT, padx=(20, 10), pady=10)
+        ).pack(side=tk.LEFT, padx=(0, 10))
         ModernButton(
             buttons_frame,
             "Reset to Default",
             command=self.reset_settings,
             style="danger",
             theme_manager=self.theme_manager
-        ).pack(side=tk.LEFT, pady=10)
+        ).pack(side=tk.LEFT)
 
     def reset_settings(self):
         self.autostart_var.set(True)
@@ -2035,18 +1918,19 @@ class ScamRakshakGUI:
         self.auto_updates_var.set(True)
         self.scan_frequency_var.set("Daily")
         self.auto_quarantine_var.set(True)
-        self.log_level_var.set("INFO")
         self.cpu_limit_var.set("50")
         self.memory_limit_var.set("512")
         self.save_settings()
         self.show_notification("Success", "Settings reset to default", "success")
 
-    def navigate_to_page(self, command, page_name):
+    def navigate_to_page(self, page_func, page_name):
         self.nav_manager.navigate_to(page_name)
         self.breadcrumb_label.config(text=page_name)
-        self.back_btn.config(state=tk.NORMAL if self.nav_manager.can_go_back() else tk.DISABLED)
-        self.forward_btn.config(state=tk.NORMAL if self.nav_manager.can_go_forward() else tk.DISABLED)
-        command()
+        for name, btn in self.nav_buttons.items():
+            btn.style = "primary" if name == page_name else "secondary"
+            btn.update_style()
+        page_func()
+        self.update_nav_buttons()
 
     def go_home(self):
         self.navigate_to_page(self.show_dashboard, "Dashboard")
@@ -2055,17 +1939,41 @@ class ScamRakshakGUI:
         page = self.nav_manager.go_back()
         if page:
             self.breadcrumb_label.config(text=page)
-            self.back_btn.config(state=tk.NORMAL if self.nav_manager.can_go_back() else tk.DISABLED)
-            self.forward_btn.config(state=tk.NORMAL if self.nav_manager.can_go_forward() else tk.DISABLED)
-            getattr(self, f"show_{page.lower().replace(' & ', '_').replace(' ', '_')}")()
+            page_func = {
+                "Dashboard": self.show_dashboard,
+                "Website Protection": self.show_website_protection,
+                "Service Monitor": self.show_service_monitor,
+                "Logs & Reports": self.show_logs,
+                "Settings": self.show_settings
+            }.get(page)
+            if page_func:
+                for name, btn in self.nav_buttons.items():
+                    btn.style = "primary" if name == page else "secondary"
+                    btn.update_style()
+                page_func()
+                self.update_nav_buttons()
 
     def go_forward(self):
         page = self.nav_manager.go_forward()
         if page:
             self.breadcrumb_label.config(text=page)
-            self.back_btn.config(state=tk.NORMAL if self.nav_manager.can_go_back() else tk.DISABLED)
-            self.forward_btn.config(state=tk.NORMAL if self.nav_manager.can_go_forward() else tk.DISABLED)
-            getattr(self, f"show_{page.lower().replace(' & ', '_').replace(' ', '_')}")()
+            page_func = {
+                "Dashboard": self.show_dashboard,
+                "Website Protection": self.show_website_protection,
+                "Service Monitor": self.show_service_monitor,
+                "Logs & Reports": self.show_logs,
+                "Settings": self.show_settings
+            }.get(page)
+            if page_func:
+                for name, btn in self.nav_buttons.items():
+                    btn.style = "primary" if name == page else "secondary"
+                    btn.update_style()
+                page_func()
+                self.update_nav_buttons()
+
+    def update_nav_buttons(self):
+        self.back_btn.configure(state=tk.NORMAL if self.nav_manager.can_go_back() else tk.DISABLED)
+        self.forward_btn.configure(state=tk.NORMAL if self.nav_manager.can_go_forward() else tk.DISABLED)
 
 if __name__ == "__main__":
     import sys
